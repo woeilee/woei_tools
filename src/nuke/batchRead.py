@@ -19,7 +19,7 @@ Batch Read allow user to bring multiple files inside subfolders at once.
  
 _EXT_MAPPING = {
             'OCIOFileTransform': ['3dl', 'blut', 'cms', 'csp', 'cub', 'cube', 'vf', 'vfz'],
-            'Read': ['cin', 'dpx', 'exr', 'external', 'hdr', 'jpeg', 'mov\t\t\tffmpeg', 'mp4', 'null', 'pic', 'png', 'sgi', 'targa', 'tiff', 'xpm', 'yuv'],
+            'Read': ['cin', 'dpx', 'exr', 'external', 'hdr', 'jpeg', 'mov', 'mov\t\t\tffmpeg', 'mp4', 'null', 'pic', 'png', 'psd', 'sgi', 'targa', 'tif', 'tiff', 'xpm', 'yuv'],
             'ReadGeo2': ['abc', 'external', 'fbx', 'obj']
 }
 
