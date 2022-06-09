@@ -17,11 +17,12 @@ _CHANNEL_CLASSES = [
 
 _CLASS_VALUE_MAP = {
     ('Blur', 'Dilate', 'Erode', 'FilterErode', 'ZBlur'): 'size',
-    ('Grade',): 'white',
+    ('Crop',): 'box',
     ('ColorCorrect',): 'gain',
+    ('Grade',): 'white',
     ('Multiply',): 'value',
     ('Merge2',): 'operation',
-    ('Transform',): 'translate',
+    ('Transform','Axis2', 'Camera2',): 'translate',
     ('Reformat',): 'format',
 
 }
@@ -43,50 +44,84 @@ class BatchEdit(nukescripts.PythonPanel):
         self.clear_expression_knob = nuke.Boolean_Knob('clear', 'clear current expression ')
         self.warning_knob = nuke.Text_Knob('warning',
                                            '<span style="color:red">select nodes to edit</span>')
-        self.font_knob = nuke.Enumeration_Knob('font', 'font', [''])
+        self.format_knob = nuke.Format_Knob('format','new format')            
+        self.font_knob = nuke.Enumeration_Knob('font', 'font', [''])##use Font_Knob instead of manually populate fonts   
         self.font_style_knob = nuke.Enumeration_Knob('font_style', 'font style', ['Regular'])
-        self.setMinimumSize(500, 120)
+        self.rgba_color_knob = nuke.AColor_Knob('values', 'new value')
+        self.wh_knob = nuke.WH_Knob('values', 'new value')
+        self.xy_knob = nuke.XY_Knob('values', 'new value')
+        self.xyz_knob = nuke.XYZ_Knob('values', 'new value')
+        self.double_knob = nuke.Double_Knob('values','new value')
+        self.scale_knob = nuke.Scale_Knob('values','new value')
+        self.color_knob = nuke.ColorChip_Knob('color','new color')
+        self.disable_knob = nuke.Disable_Knob('disable','disable')
+        self.channel_knob = nuke.ChannelMask_Knob('channels', 'select channels')
+        self.split_knob = nuke.PyScript_Knob('split', 'xyz/rgba')
+        self.update_knob = nuke.PyScript_Knob('update', '   update value to knob   ')
+        self.bbox_knob = nuke.BBox_Knob('bbox','bbox')
+
+        self.setMinimumSize(500, 220)
 
         self.addKnob(self.main_knob)
         self.addKnob(self.warning_knob)
         self.warning_knob.clearFlag(nuke.STARTLINE)
         self.warning_knob.setVisible(False)
         self.addKnob(self.edit_knob)
-        self.split_knob = nuke.PyScript_Knob('split', 'xyz/rgba')
         self.addKnob(self.split_knob)
         self.split_knob.clearFlag(nuke.STARTLINE)
         self.addKnob(self.new_value_knob)
+        self.addKnob(self.disable_knob)
+        self.addKnob(self.channel_knob)
 
-        self.new_knob0 = nuke.String_Knob('new value  x/r')
-        self.new_knob1 = nuke.String_Knob('y/g')
-        self.new_knob2 = nuke.String_Knob('z/b')
-        self.new_knob3 = nuke.String_Knob('a')
-
-        self.addKnob(self.new_knob0)
-        self.addKnob(self.new_knob1)
-        self.addKnob(self.new_knob2)
-        self.addKnob(self.new_knob3)
+        self.addKnob(self.format_knob)    
         self.addKnob(self.font_knob)
         self.addKnob(self.font_style_knob)
-        self.font_style_knob.clearFlag(nuke.STARTLINE)
+        self.addKnob(self.pull_down_knob)
+        self.addKnob(self.rgba_color_knob)
+        self.addKnob(self.xy_knob)
+        self.addKnob(self.xyz_knob)
+        self.addKnob(self.wh_knob)
+        self.addKnob(self.bbox_knob)
+        self.addKnob(self.double_knob)
+        self.addKnob(self.scale_knob)
+        self.addKnob(self.color_knob)
+        self.addKnob(self.update_knob)
         self.addKnob(self.clear_expression_knob)
+        self.font_style_knob.clearFlag(nuke.STARTLINE)
+        self.disable_knob.setFlag(nuke.STARTLINE)
+        # self.channel_knob.setFlag(nuke.STARTLINE)
+        # self.update_knob.clearFlag(nuke.STARTLINE)
+        # self.clear_expression_knob.setFlag(nuke.STARTLINE)
 
-        self.new_knob1.clearFlag(nuke.STARTLINE)
-        self.new_knob1.clearFlag(nuke.STARTLINE)
-        self.new_knob2.clearFlag(nuke.STARTLINE)
-        self.new_knob3.clearFlag(nuke.STARTLINE)
-        self.clear_expression_knob.setFlag(nuke.STARTLINE)
-
-        self.new_knob0.setVisible(False)
-        self.new_knob1.setVisible(False)
-        self.new_knob2.setVisible(False)
-        self.new_knob3.setVisible(False)
+        self.format_knob.setVisible(False)   
+        self.channel_knob.setVisible(False)
         self.font_knob.setVisible(False)
         self.font_style_knob.setVisible(False)
-        self.addKnob(self.pull_down_knob)
+        self.rgba_color_knob.setVisible(False)
+        self.xy_knob.setVisible(False)
+        self.xyz_knob.setVisible(False)
+        self.wh_knob.setVisible(False)
+        self.bbox_knob.setVisible(False)
+        self.double_knob.setVisible(False)
+        self.scale_knob.setVisible(False)
+        self.color_knob.setVisible(False)
+        self.disable_knob.setVisible(False)
         self.pull_down_knob.setVisible(False)
+
+        self.get_nodes()
         self.get_knobs()
         self.build_fonts_dict()
+
+
+
+
+    ################################# get information before panel initiate #################################
+
+
+    def get_nodes(self):
+        nodes = nuke.selectedNodes()
+
+        return nodes   
 
     def get_knobs(self):
         """
@@ -128,6 +163,7 @@ class BatchEdit(nukescripts.PythonPanel):
         # Insert fonts to the font knob
         self.font_knob.setValues(sorted(self.build_fonts_dict()))
 
+
     def get_root_channels(self):
         """
         Get all the available Channels from the script root
@@ -140,6 +176,12 @@ class BatchEdit(nukescripts.PythonPanel):
             channels.append(value)
 
         return channels
+
+
+
+    ################################# building lists and dictionaries #################################
+
+
 
     def build_fonts_dict(self):
         """
@@ -160,97 +202,236 @@ class BatchEdit(nukescripts.PythonPanel):
 
         return font_dict
 
-    def knobChanged(self, knob):
+    def multi_inputs_knobs(self):
+        self.replacing_knobs = [self.rgba_color_knob, self.wh_knob, self.xy_knob, 
+                                self.xyz_knob, self.double_knob, self.scale_knob,
+                                self.color_knob, self.bbox_knob]   
 
-        selectedKnob = self.main_knob.value()
-        self.pull_down_knob.setVisible(False)
-        newKnobs = [self.new_value_knob, self.new_knob0, self.new_knob1, self.new_knob2,
-                    self.new_knob3]
+        return self.replacing_knobs 
 
-        if selectedKnob == 'font':
-            """
-            When font knob is select, hide all other knobs
-            """
-            if not self.font_knob.visible():
-                self.font_knob.setVisible(True)
-                self.font_style_knob.setVisible(True)
-                for knob in newKnobs:
-                    knob.setVisible(False)
+    def pulldown_input_knobs(self):
+        self.pulldowns = [self.pull_down_knob, self.format_knob, 
+                          self.font_knob, self.font_style_knob,
+                          self.channel_knob]
 
-                self.edit_knob.setVisible(False)
-                self.split_knob.setVisible(False)
-                self.clear_expression_knob.setVisible(False)
+        return self.pulldowns
 
-        elif knob.name() == 'split':
-            """
-            When split 'xyz/xy' is click, hide string input
-            """
-            if self.new_value_knob.visible():
-                self.new_value_knob.setVisible(False)
-                for knob in newKnobs[1:]:
+    def extra_button_knobs(self):
+        self.extra_knobs = [self.split_knob, self.edit_knob]
+
+        return self.extra_knobs
+
+    def font_knobs(self):
+        self.font_family = [self.font_knob, self.font_style_knob]
+
+        return self.font_family
+
+    ################################# knobChanged operation on panel #################################
+
+    # def default_panel_knob(self):
+    def default_panel_knob(self, node, selected_knob, font_family, single_input_knobs, replacing_knobs):
+        """ default knob visibility """
+        if not self.new_value_knob.visible():
+            self.new_value_knob.setVisible(True)
+            if node[selected_knob].Class() in [x.Class() for x in self.replacing_knobs]:
+                for knob in self.extra_knobs:
                     knob.setVisible(True)
-                self.font_knob.setVisible(False)
+
+        for knob in self.single_input_knobs + self.replacing_knobs + self.font_family + [self.disable_knob]:    
+            knob.setVisible(False)      
+
+
+    def font_selected(self):
+        """ # When font knob is select, hide all other knobs """
+        if not self.font_knob.visible():
+            for knob in self.single_input_knobs:
+                knob.setVisible(False)
+            for r_knob in self.replacing_knobs:
+                r_knob.setVisible(False)
+            self.new_value_knob.setVisible(False)    
+            for knob in self.extra_knobs:
+                knob.setVisible(False) 
+            for f_knob in self.font_family:
+                f_knob.setVisible(True)
+
+        elif [knob.visible() == True for knob in self.single_input_knobs]: 
+            self.new_value_knob.setVisible(False)
+            for r_knob in self.replacing_knobs:
+                r_knob.setVisible(False)
+
+    def box_selected(self):
+        """ when box knob is select, hide all other knobs """
+        if not self.bbox_knob.visible():
+            for knob in self.single_input_knobs:
+                knob.setVisible(False)
+            for r_knob in self.replacing_knobs:
+                r_knob.setVisible(False)
+            self.new_value_knob.setVisible(False)    
+            for knob in self.extra_knobs:
+                knob.setVisible(False) 
+            self.bbox_knob.setVisible(True)                                
+
+    def split_clicked(self, nodes, selected_knob):
+        """ When split 'xyz/xy' is click, hide string input """
+        if self.new_value_knob.visible():
+            # self.font_knob.setVisible(False)
+            for f_knob in self.font_family:
+                f_knob.setVisible(False)
+            self.format_knob.setVisible(False)
+
+            for r_knob in self.replacing_knobs:
+                r_knob.setVisible(False)
+                if r_knob.Class() == nodes[0][selected_knob].Class():
+                    r_knob.setVisible(True)   
+                    r_knob.setLabel(nodes[0][selected_knob].label())
+                    self.new_value_knob.setVisible(False)                    
+
+        else:
+            self.new_value_knob.setVisible(True)
+            for knob in self.single_input_knobs:
+                knob.setVisible(False)
+            for r_knob in self.replacing_knobs:
+                r_knob.setVisible(False)
+
+    def format_selected(self):
+        """ when 'format' is selected on main_knob """
+        self.format_knob.setVisible(True)
+        self.new_value_knob.setVisible(False)
+        self.split_knob.setVisible(False)
+        for knob in self.extra_knobs:
+            knob.setVisible(False)
+        self.clear_expression_knob.setVisible(False)
+        self.update_knob.clearFlag(nuke.STARTLINE)
+        pass
+
+    def disable_selected(self, knob, selected_knob, font_family, single_input_knobs, replacing_knobs):
+        """ when 'disable' or other checkbox is selcted on
+            main_knob, change main_knob to boolean checkbox """
+        self.disable_knob.setLabel(selected_knob) ### update label to selected knob
+        
+        for f_knob in self.font_family + self.single_input_knobs + self.replacing_knobs:
+            f_knob.setVisible(False)
+        if not self.edit_knob.value() == 'expression':
+            self.new_value_knob.setVisible(False)
+            self.disable_knob.setVisible(True)
+        else:
+            self.new_value_knob.setVisible(True)
+            self.disable_knob.setVisible(False)
+
+        if self.disable_knob.visible():
+            self.get_new_values(self.get_nodes())
+
+
+    def color_chip_selected(self,node, selected_knob, font_family, single_input_knobs, replacing_knobs):
+        """ when color chip is selected, 
+            change knob to ColorChip_Knob """
+        self.color_knob.setVisible(True)
+        self.color_knob.setLabel(node[selected_knob].name())
+        self.disable_knob.setVisible(False)
+        self.new_value_knob.setVisible(False)
+        self.replacing_knobs.remove(self.color_knob)
+        for f_knob in self.font_family + self.single_input_knobs + self.replacing_knobs:
+            f_knob.setVisible(False)  
+
+    def pulldown_selected(self,node, selected_knob, current_value):
+        """ if the selected knob is a pulldown, 
+            hide main_knob and replace with pulldown """
+        if any(word in node[selected_knob].Class() for word in _PULL_DOWN_CLASSES):
+            if not self.pull_down_knob.visible():
+                for knob in self.single_input_knobs + self.extra_knobs + self.replacing_knobs:
+                    knob.setVisible(False)
+                self.new_value_knob.setVisible(False)   
+                self.pull_down_knob.setVisible(True)
+                new_list = current_value.values()
+                new_list.insert(0, current_value.value())
+                self.pull_down_knob.setValues(new_list)
+
+                pass
+
+        elif any(word in node[selected_knob].Class() for word in _CHANNEL_CLASSES):
+            self.single_input_knobs.remove(self.channel_knob)
+            self.new_value_knob.setVisible(False) 
+            if not self.channel_knob.visible():
+                self.channel_knob.setLabel('select channels')
+                self.channel_knob.setVisible(True)
+            for knob in self.single_input_knobs + self.extra_knobs + self.replacing_knobs:
+                knob.setVisible(False)
+
+                pass
+  
+
+    def knobChanged(self, knob):
+        nodes = self.get_nodes()
+        node = self.get_nodes()[-1]
+        selected_knob = self.main_knob.value()
+        current_value = node[selected_knob]
+        self.pull_down_knob.setVisible(False)
+        self.replacing_knobs = self.multi_inputs_knobs()
+        self.single_input_knobs = self.pulldown_input_knobs()
+        self.extra_knobs = self.extra_button_knobs()
+        self.font_family = self.font_knobs()
+
+        """ default knob visibility """
+        
+        # When font knob is select, hide all other knobs
+        if selected_knob == 'font' or nodes[-1][selected_knob].Class() == 'Font_Knob':    
+            self.font_selected()
+
+        # When split 'xyz/xy' is click, hide string input
+        elif knob.name() == 'split':
+
+            if self.new_value_knob.visible():
+                # self.font_knob.setVisible(False)
+                for f_knob in self.font_family:
+                    f_knob.setVisible(False)
+                self.format_knob.setVisible(False)
+
+                for r_knob in self.replacing_knobs:
+                    r_knob.setVisible(False)
+                    if r_knob.Class() == nodes[0][selected_knob].Class():
+                        r_knob.setVisible(True)   
+                        r_knob.setLabel(nodes[0][selected_knob].label())
+                        self.new_value_knob.setVisible(False)                    
 
             else:
                 self.new_value_knob.setVisible(True)
-                for knob in newKnobs[1:]:
+                for knob in self.single_input_knobs:
                     knob.setVisible(False)
-                self.font_knob.setVisible(False)
+                for r_knob in self.replacing_knobs:
+                    r_knob.setVisible(False)
 
-        else:
-            [newKnobs[0].setVisible(True) if newKnobs[1].visible() != True else None]
-            self.font_knob.setVisible(False)
-            self.font_style_knob.setVisible(False)
-            self.edit_knob.setVisible(True)
-            self.split_knob.setVisible(True)
-            self.clear_expression_knob.setVisible(False)
 
-        if knob.name() == 'font':
-            self.font_style_knob.setValues(self.build_fonts_dict()[self.font_knob.value()])
+        # still hide string knob if selection is in replacing_knobs
+        elif knob in self.replacing_knobs:
+            self.new_value_knob.setVisible(False)               
 
-        node = nuke.selectedNodes()[-1]
-        current_value = node[selectedKnob]
-        if selectedKnob:
-            if any(word in node[selectedKnob].Class() for word in _PULL_DOWN_CLASSES):
+        # when format is selected, change main_knob to channel pulldown
+        elif selected_knob == 'format':
+            self.format_selected()
 
-                if not self.pull_down_knob.visible():
-                    self.pull_down_knob.setVisible(True)
-                    new_list = current_value.values()
-                    new_list.insert(0, current_value.value())
-                    self.pull_down_knob.setValues(new_list)
-                    # self.pulldownKnob.setValue(node[selectedKnob].value())
-                    self.new_value_knob.setVisible(False)
-                    self.split_knob.setVisible(False)
-                    pass
+        elif selected_knob == 'box':
+            self.box_selected()     
 
-            elif any(word in node[selectedKnob].Class() for word in _CHANNEL_CLASSES):
-                if not self.pull_down_knob.visible():
-                    self.pull_down_knob.setVisible(True)
-                    channel_list = list(self.get_root_channels())
-                    channel_list.insert(0, current_value.value())
-                    self.pull_down_knob.setValues(channel_list)
+        # when disable is selected, change main_knob to Disable_Knob
+        elif nodes[-1][selected_knob].Class() in ['Disable_Knob','Boolean_Knob']:
+            self.split_knob.setVisible(False)  
+            self.disable_selected(knob, selected_knob, self.font_family, 
+                                  self.single_input_knobs, self.replacing_knobs)
 
-                    self.new_value_knob.setVisible(False)
-                    self.split_knob.setVisible(False)
-                    pass
+        # when selected knob is a pull down, change main_knob to pulldown
+        elif self.pull_down_knob or self.channel_knob:
+            self.pulldown_selected(node, selected_knob, current_value)
 
-            elif selectedKnob == 'format':
-                self.new_value_knob.setVisible(False)
-                self.split_knob.setVisible(False)
-                self.pull_down_knob.setVisible(True)
-                format_list = [i.name() for i in nuke.formats()]
+        # when update knob is click, update knob values but keep panel open
+        if knob.name() == 'update':
+            self.get_new_values(nodes)
 
-                format_list.insert(0, "%s %sx%s" % (
-                current_value.value().name(), current_value.value().width(),
-                current_value.value().height()))
-                self.pull_down_knob.setValues(format_list)
 
-                pass
 
-            else:
-                # self.newValue.setVisible(True)
-                # self.split_knob.setVisible(True)
-                pass
+
+    ################################# panel instantiate methods #################################
+
+            
 
     def set_default_value(self, nodes):
         """
@@ -267,37 +448,68 @@ class BatchEdit(nukescripts.PythonPanel):
             elif node_class in _CLASS_VALUE_MAP:
                 self.main_knob.setValue(_CLASS_VALUE_MAP[node_class])
 
-    def show_modal_dialog(self):
+        # add font dict to font pulldown
+        self.font_style_knob.setValues(self.build_fonts_dict()[self.font_knob.value()])
+            
+        # self.channel_knob.setValue(node[self.main_knob.value()].value())  
 
+    def show_modal_dialog(self):
+        """ show panel """
         nodes = nuke.selectedNodes()
         if len(nodes):
             self.set_default_value(nodes)
+            show = nukescripts.PythonPanel.showModalDialog(self)
+            if show:
+                self.get_new_values(nodes)
 
-        show = nukescripts.PythonPanel.showModalDialog(self)
 
-        if self.new_value_knob.visible():
-            new_val = self.new_value_knob.getValue()
 
-        elif self.pull_down_knob.visible():
-            new_val = self.pull_down_knob.value()
-        else:
-            new_val = [self.new_knob0.getValue(), self.new_knob1.getValue(),
-                       self.new_knob2.getValue(), self.new_knob3.getValue()]
-            new_val = [x if x else None for x in new_val]
 
+    ################################# execute new values to selectedNodes #################################
+
+
+
+
+    def get_new_values(self, nodes):
+        """ get new value on panel """    
+
+        for knob in [self.pull_down_knob, self.font_knob, self.format_knob]:
+            if knob.visible():
+                new_val = knob.value()
+
+        for knob in [self.new_value_knob] + [self.disable_knob]:
+            if knob.visible():
+                try:
+                    new_val = knob.getValue()
+                except ValueError:
+                    print('Invalid Value')    
+
+        for knob in [self.color_knob, self.font_knob]:
+            if knob.visible():
+                new_val = knob.value()
+
+        self.replacing_knobs = self.multi_inputs_knobs()
+        for r_knob in self.replacing_knobs:
+            if r_knob.visible():
+                new_val = r_knob.value()
+                if isinstance(new_val, list):
+                    new_val = [x if x else None for x in new_val]
+               
         is_expr = self.edit_knob.getValue()
-        clear = self.clear_expression_knob.getValue()
+        clear = int(self.clear_expression_knob.getValue())
 
-        if show:
-            self.change_knob_value(new_val, is_expr, clear, nodes)
 
-        return show
+        # pass new values to selected nodes
+        self.update_knob_value(new_val, is_expr, clear, nodes)    
 
-    def change_knob_value(self, new_val, is_expr, clear, nodes):
+
+    def update_knob_value(self, new_val, is_expr, clear, nodes):
+        """ execute batch edit on multiple nodes in the selection """
         knob = self.main_knob.value()
         split = not bool(self.new_value_knob.visible())
         title = nukescripts.goofy_title()
         val = 0
+
         if is_expr:
             print("edit expression")
             for node in nodes:
@@ -307,14 +519,10 @@ class BatchEdit(nukescripts.PythonPanel):
                     if split:
                         for step, val in enumerate(new_val):
                             if val is not None:
-                                node.knob(knob).setSingleValue(False)
-                                node.knob(knob).setExpression(new_val[step], step)
-                                print("{} {} {}".format(node.name(), val, step))
-
+                                node.knob(knob).setSingleValue(False)                          
                     else:
                         node.knob(knob).setSingleValue(True)
-                        node.knob(knob).setExpression(new_val)
-
+                        node.knob(knob).setExpression(str(new_val))
                 except:
                     nuke.message("error while setting expression: \n\n" + title)
         else:
@@ -339,11 +547,12 @@ class BatchEdit(nukescripts.PythonPanel):
                                 node.knob('font').setValue(new_val)
                                 node.knob('index').setValue(new_style)
                                 print(node.name())
-
                             else:
                                 node.knob('font').setValue(new_val)
 
                         if knob == 'format':
+                            new_val = new_val.name()
+
                             node.knob(knob).setValue(new_val)
 
                         if new_val_type == str:
@@ -363,32 +572,38 @@ class BatchEdit(nukescripts.PythonPanel):
                                             node.knob(knob).setValue(float(val), step)
                                 except:
                                     raise 'error while editing new value'
+                            else:
+                                node.knob(knob).setValue(float(new_val))
+                                node.knob(knob).setValue(str(new_val))      
                         else:
                             node.knob(knob).setSingleValue(True)
                             node.knob(knob).setValue(float(new_val))
                         if new_val_type == float:
                             node.knob(knob).setValue(float(new_val))
-                        if new_val_type == int:
+                        elif new_val_type == int:
                             node.knob(knob).setValue(int(new_val))
-                        if new_val_type == unicode:
+                        elif new_val_type == unicode:
                             node.knob(knob).setValue(unicode(new_val))
-                        if new_val_type == tuple:
+                        elif new_val_type == tuple:
                             node.knob(knob).setValue(float(new_val))
-
-                        if new_val_type == bool:
+                        elif new_val_type == bool:
                             node.knob(knob).setValue(float(new_val))
+                        else:
+                            node.knob(knob).setValue(new_val_type(new_val))    
                     except:
                         # nuke.message('error while editing new value')
                         continue
 
-                except:
+                except ValueError:
+                    nuke.message('error while editing new value')
                     pass
 
-        # print edited node and knob informations
-        print([node.name() for node in nodes])
-        print('Edited knob: {}'.format(knob))
+        # # print edited node and knob informations
+        # print([node.name() for node in nodes])
+        # print('Edited knob: {}'.format(knob))
         print('new value is: {}'.format(new_val))
-        print('is expression: {}'.format(is_expr))
+        # print('is expression: {}'.format(is_expr))
+
 
 
 def show_dialog():
@@ -396,4 +611,4 @@ def show_dialog():
 
 
 if __name__ == '__main__':
-    _BatchEdit_UI = show_dialog()
+    _BatchEdit_UI = show_dialog()                           
